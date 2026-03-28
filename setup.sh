@@ -1,5 +1,5 @@
 #!/bin/bash
-# Claude Usage API - Setup Script
+# CC Usage API - Setup Script
 # Configures the statusline writer and installs dependencies
 
 set -e
@@ -11,7 +11,7 @@ DATA_DIR="$CLAUDE_DIR/usage_data"
 WRITER_SCRIPT="$SCRIPT_DIR/statusline_writer.py"
 VENV_DIR="$SCRIPT_DIR/.venv"
 
-echo "=== Claude Usage API Setup ==="
+echo "=== CC Usage API Setup ==="
 echo ""
 
 # 1. Create data directory
@@ -110,8 +110,8 @@ echo "[5/5] Creating start script..."
 cat > "$SCRIPT_DIR/start.sh" << 'STARTEOF'
 #!/bin/bash
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-PORT="${CLAUDE_USAGE_API_PORT:-8390}"
-echo "Starting Claude Usage API on http://localhost:$PORT"
+PORT="${CC_USAGE_API_PORT:-8390}"
+echo "Starting CC Usage API on http://localhost:$PORT"
 echo "Dashboard: http://localhost:$PORT/dashboard"
 echo "API docs:  http://localhost:$PORT/docs"
 exec "$SCRIPT_DIR/.venv/bin/python3" "$SCRIPT_DIR/server.py"
@@ -129,7 +129,7 @@ echo "To start the API server:"
 echo "  $SCRIPT_DIR/start.sh"
 echo ""
 echo "Or with custom port:"
-echo "  CLAUDE_USAGE_API_PORT=9000 $SCRIPT_DIR/start.sh"
+echo "  CC_USAGE_API_PORT=9000 $SCRIPT_DIR/start.sh"
 echo ""
 echo "Endpoints:"
 echo "  http://localhost:8390/          - API info"

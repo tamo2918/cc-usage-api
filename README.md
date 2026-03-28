@@ -1,4 +1,4 @@
-# Claude Usage API
+# CC Usage API
 
 Expose your [Claude Code](https://docs.anthropic.com/en/docs/claude-code) session usage data (rate limits, cost, context window) as a local REST API.
 
@@ -20,7 +20,7 @@ Claude Code  ──stdin JSON──▶  statusline_writer.py  ──file──�
 
 ```bash
 git clone https://github.com/tamo2918/cc-usage-api.git
-cd claude-usage-api
+cd cc-usage-api
 ./setup.sh
 ```
 
@@ -107,7 +107,7 @@ evtSource.onmessage = (event) => {
 
 ```bash
 #!/bin/bash
-# @raycast.title Claude Usage
+# @raycast.title CC Usage
 # @raycast.mode inline
 curl -s http://localhost:8390/rate-limits | jq -r '"5h: \(.rate_limits.five_hour.used_percentage)% | 7d: \(.rate_limits.seven_day.used_percentage)%"'
 ```
@@ -124,15 +124,15 @@ echo "Claude: ${five}%"
 ### Shell Alias
 
 ```bash
-alias claude-usage='curl -s http://localhost:8390/rate-limits | jq .'
+alias cc-usage='curl -s http://localhost:8390/rate-limits | jq .'
 ```
 
 ## Configuration
 
 | Environment Variable | Default | Description |
 |---|---|---|
-| `CLAUDE_USAGE_API_HOST` | `127.0.0.1` | Bind address |
-| `CLAUDE_USAGE_API_PORT` | `8390` | Port number |
+| `CC_USAGE_API_HOST` | `127.0.0.1` | Bind address |
+| `CC_USAGE_API_PORT` | `8390` | Port number |
 
 ## Security
 

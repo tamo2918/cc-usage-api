@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Claude Usage API Server
+"""CC Usage API Server
 
 Lightweight HTTP API that serves Claude Code usage data
 saved by the statusline_writer.py script.
@@ -103,7 +103,7 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(
-    title="Claude Usage API",
+    title="CC Usage API",
     description="REST API to access Claude Code session usage, rate limits, and cost data.",
     version="1.0.0",
     lifespan=lifespan,
@@ -121,7 +121,7 @@ app.add_middleware(
 @app.get("/")
 def root():
     return {
-        "name": "Claude Usage API",
+        "name": "CC Usage API",
         "version": "1.0.0",
         "endpoints": {
             "/usage": "Full usage data (latest snapshot)",
@@ -289,9 +289,9 @@ def dashboard():
 if __name__ == "__main__":
     import uvicorn
 
-    host = os.environ.get("CLAUDE_USAGE_API_HOST", "127.0.0.1")
-    port = int(os.environ.get("CLAUDE_USAGE_API_PORT", "8390"))
-    print(f"Starting Claude Usage API on http://{host}:{port}")
+    host = os.environ.get("CC_USAGE_API_HOST", "127.0.0.1")
+    port = int(os.environ.get("CC_USAGE_API_PORT", "8390"))
+    print(f"Starting CC Usage API on http://{host}:{port}")
     print(f"Dashboard: http://localhost:{port}/dashboard")
     print(f"API docs:  http://localhost:{port}/docs")
     uvicorn.run(app, host=host, port=port)
