@@ -150,7 +150,3 @@ alias cc-usage='curl -s http://localhost:8390/rate-limits | jq .'
 ## ライセンス
 
 [MIT](./LICENSE)
-
-## クレジット
-
-この記事にインスピレーションを受けました: [Claude Code ステータスラインでレートリミットを可視化](https://nyosegawa.com/posts/claude-code-statusline-rate-limits/)
