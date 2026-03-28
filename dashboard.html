@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Claude Usage Dashboard</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'SF Pro', system-ui, sans-serif;
+            background: #0a0a0f;
+            color: #e0e0e0;
+            min-height: 100vh;
+        }
+        .container { max-width: 900px; margin: 0 auto; padding: 24px; }
+        h1 {
+            font-size: 1.5rem;
+            font-weight: 600;
+            margin-bottom: 8px;
+            color: #fff;
+        }
+        .subtitle { color: #888; font-size: 0.85rem; margin-bottom: 24px; }
+        .status-dot {
+            display: inline-block;
+            width: 8px; height: 8px;
+            border-radius: 50%;
+            margin-right: 8px;
+            background: #555;
+        }
+        .status-dot.active { background: #4ade80; animation: pulse 2s infinite; }
+        .status-dot.waiting { background: #f59e0b; }
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+        .card {
+            background: #141420;
+            border: 1px solid #2a2a3a;
+            border-radius: 12px;
+            padding: 20px;
+        }
+        .card-title {
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: #888;
+            margin-bottom: 12px;
+        }
+        .metric {
+            font-size: 2rem;
+            font-weight: 700;
+            color: #fff;
+            line-height: 1.2;
+        }
+        .metric-sub { font-size: 0.8rem; color: #666; margin-top: 4px; }
+        .progress-container {
+            margin-top: 12px;
+        }
+        .progress-bar {
+            height: 6px;
+            background: #1e1e30;
+            border-radius: 3px;
+            overflow: hidden;
+        }
+        .progress-fill {
+            height: 100%;
+            border-radius: 3px;
+            transition: width 0.5s ease, background 0.5s ease;
+        }
+        .progress-label {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.75rem;
+            color: #666;
+            margin-top: 4px;
+        }
+        .green { background: linear-gradient(90deg, #22c55e, #4ade80); }
+        .yellow { background: linear-gradient(90deg, #eab308, #facc15); }
+        .red { background: linear-gradient(90deg, #ef4444, #f87171); }
+        .model-badge {
+            display: inline-block;
+            padding: 4px 12px;
+            background: #1e1e30;
+            border: 1px solid #3b3b5a;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            color: #a78bfa;
+        }
+        .error-msg {
+            padding: 20px;
+            background: #1a1020;
+            border: 1px solid #4a2040;
+            border-radius: 12px;
+            color: #f87171;
+            text-align: center;
+        }
+        .footer {
+            text-align: center;
+            color: #444;
+            font-size: 0.75rem;
+            margin-top: 32px;
+        }
+        .updated-at { color: #555; font-size: 0.75rem; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1><span class="status-dot" id="statusDot"></span>Claude Usage Dashboard</h1>
+        <p class="subtitle" id="subtitle">Connecting...</p>
+
+        <div id="content">
+            <div class="error-msg">Waiting for data from Claude Code...</div>
+        </div>
+
+        <div class="footer">
+            Claude Usage API | Data refreshes automatically via SSE
+        </div>
+    </div>
+
+    <script>
+        // When served via /dashboard, use same origin. Otherwise default to port 8390.
+        const API_BASE = window.location.pathname.startsWith('/dashboard')
+            ? `${window.location.protocol}//${window.location.host}`
+            : `${window.location.protocol}//${window.location.hostname}:8390`;
+
+        function getProgressColor(pct) {
+            if (pct < 50) return 'green';
+            if (pct < 80) return 'yellow';
+            return 'red';
+        }
+
+        function formatDuration(ms) {
+            if (!ms) return '-';
+            const s = Math.floor(ms / 1000);
+            const m = Math.floor(s / 60);
+            const h = Math.floor(m / 60);
+            if (h > 0) return `${h}h ${m % 60}m`;
+            if (m > 0) return `${m}m ${s % 60}s`;
+            return `${s}s`;
+        }
+
+        function formatResetTime(epochSec) {
+            if (!epochSec) return '-';
+            const remaining = Math.max(0, epochSec - Date.now() / 1000);
+            const m = Math.floor(remaining / 60);
+            const h = Math.floor(m / 60);
+            if (h > 0) return `${h}h ${m % 60}m`;
+            return `${m}m`;
+        }
+
+        function progressBar(label, pct, sub) {
+            if (pct == null) return '';
+            const color = getProgressColor(pct);
+            return `
+                <div class="progress-container">
+                    <div class="progress-bar">
+                        <div class="progress-fill ${color}" style="width:${Math.min(pct, 100)}%"></div>
+                    </div>
+                    <div class="progress-label">
+                        <span>${label}</span>
+                        <span>${pct.toFixed(1)}%${sub ? ' · ' + sub : ''}</span>
+                    </div>
+                </div>`;
+        }
+
+        function render(data) {
+            const dot = document.getElementById('statusDot');
+            const subtitle = document.getElementById('subtitle');
+            const content = document.getElementById('content');
+
+            dot.className = 'status-dot active';
+            const savedAt = data._saved_at_iso || '';
+            subtitle.innerHTML = `Last update: ${savedAt} <span class="updated-at"></span>`;
+
+            const model = data.model || {};
+            const cost = data.cost || {};
+            const ctx = data.context_window || {};
+            const rl = data.rate_limits || {};
+            const fiveH = rl.five_hour || {};
+            const sevenD = rl.seven_day || {};
+
+            let html = '<div class="grid">';
+
+            // Model & Session
+            html += `
+                <div class="card">
+                    <div class="card-title">Model</div>
+                    <span class="model-badge">${model.display_name || model.id || '?'}</span>
+                    <div class="metric-sub" style="margin-top:8px">v${data.version || '?'}</div>
+                    <div class="metric-sub">Session: ${(data.session_id || '').slice(0, 12)}...</div>
+                </div>`;
+
+            // Cost
+            html += `
+                <div class="card">
+                    <div class="card-title">Session Cost</div>
+                    <div class="metric">$${(cost.total_cost_usd || 0).toFixed(4)}</div>
+                    <div class="metric-sub">Duration: ${formatDuration(cost.total_duration_ms)}</div>
+                    <div class="metric-sub">API time: ${formatDuration(cost.total_api_duration_ms)}</div>
+                </div>`;
+
+            // Rate Limits - 5 Hour
+            html += `
+                <div class="card">
+                    <div class="card-title">Rate Limit (5 Hour)</div>
+                    <div class="metric">${fiveH.used_percentage != null ? fiveH.used_percentage.toFixed(1) + '%' : 'N/A'}</div>
+                    <div class="metric-sub">Resets in: ${formatResetTime(fiveH.resets_at)}</div>
+                    ${progressBar('Used', fiveH.used_percentage)}
+                </div>`;
+
+            // Rate Limits - 7 Day
+            html += `
+                <div class="card">
+                    <div class="card-title">Rate Limit (7 Day)</div>
+                    <div class="metric">${sevenD.used_percentage != null ? sevenD.used_percentage.toFixed(1) + '%' : 'N/A'}</div>
+                    <div class="metric-sub">Resets in: ${formatResetTime(sevenD.resets_at)}</div>
+                    ${progressBar('Used', sevenD.used_percentage)}
+                </div>`;
+
+            // Context Window
+            html += `
+                <div class="card">
+                    <div class="card-title">Context Window</div>
+                    <div class="metric">${ctx.used_percentage != null ? ctx.used_percentage.toFixed(1) + '%' : 'N/A'}</div>
+                    <div class="metric-sub">Size: ${ctx.context_window_size ? (ctx.context_window_size / 1000).toFixed(0) + 'K tokens' : '?'}</div>
+                    ${progressBar('Used', ctx.used_percentage)}
+                </div>`;
+
+            // Code Changes
+            html += `
+                <div class="card">
+                    <div class="card-title">Code Changes</div>
+                    <div class="metric" style="font-size:1.4rem; color:#4ade80">+${cost.total_lines_added || 0}</div>
+                    <div class="metric" style="font-size:1.4rem; color:#f87171">-${cost.total_lines_removed || 0}</div>
+                </div>`;
+
+            html += '</div>';
+            content.innerHTML = html;
+        }
+
+        // SSE connection
+        function connectSSE() {
+            const evtSource = new EventSource(`${API_BASE}/stream`);
+            evtSource.onmessage = (event) => {
+                try {
+                    const data = JSON.parse(event.data);
+                    render(data);
+                } catch (e) {
+                    console.error('Parse error:', e);
+                }
+            };
+            evtSource.onerror = () => {
+                document.getElementById('statusDot').className = 'status-dot waiting';
+                document.getElementById('subtitle').textContent = 'Connection lost. Reconnecting...';
+                evtSource.close();
+                setTimeout(connectSSE, 3000);
+            };
+        }
+
+        // Initial fetch then SSE
+        fetch(`${API_BASE}/usage`)
+            .then(r => r.json())
+            .then(data => { if (!data.error) render(data); })
+            .catch(() => {});
+        connectSSE();
+    </script>
+</body>
+</html>
